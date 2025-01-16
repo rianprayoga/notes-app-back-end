@@ -1,3 +1,5 @@
+const ClientError = require('../../exceptions/ClientError');
+
 class NotesHandler {
   constructor(service, validator) {
     this._service = service;
@@ -13,8 +15,11 @@ class NotesHandler {
   async postNoteHandler(request, h) {
     this._validator.validateNotePayload(request.payload);
 
+    const { id: credentialId } = request.auth.credentials;
     const { title = 'untitled', tags, body } = request.payload;
-    const id = await this._service.addNote({ title, body, tags });
+    const id = await this._service.addNote({
+      title, body, tags, owner: credentialId,
+    });
 
     const response = h.response({
       status: 'success',
@@ -27,8 +32,10 @@ class NotesHandler {
     return response;
   }
 
-  async getNotesHandler() {
-    const notes = await this._service.getNotes();
+  async getNotesHandler(request) {
+    const { id: credentialId } = request.auth.credentials;
+
+    const notes = await this._service.getNotes(credentialId);
     return {
       status: 'success',
       data: {
@@ -37,46 +44,87 @@ class NotesHandler {
     };
   }
 
-  async getNoteByIdHandler(request) {
-    const { id } = request.params;
-    const note = await this._service.getNoteById(id);
+  async getNoteByIdHandler(request, h) {
+    try {
+      const { id } = request.params;
+      const { id: credentialId } = request.auth.credentials;
+      await this._service.verifyNoteOwner(id, credentialId);
 
-    return {
-      status: 'success',
-      data: {
-        note,
-      },
-    };
+      const note = await this._service.getNoteById(id);
+
+      return {
+        status: 'success',
+        data: {
+          note,
+        },
+      };
+    } catch (error) {
+      if (error instanceof ClientError) {
+        const response = h.response({
+          status: 'fail',
+          message: error.message,
+        });
+        response.code(error.statusCode);
+        return response;
+      }
+    }
   }
 
   async putNoteByIdHandler(request, h) {
-    const { id } = request.params;
-
     this._validator.validateNotePayload(request.payload);
 
-    const { title, body, tags } = request.payload;
-    await this._service.editNoteById(
-      id,
-      { title, body, tags },
-    );
+    try {
+      const { id } = request.params;
+      const { id: credentialId } = request.auth.credentials;
+      await this._service.verifyNoteOwner(id, credentialId);
 
-    const response = h.response({
-      status: 'success',
-      message: 'Catatan berhasil diperbarui',
-    });
-    response.code(200);
-    return response;
+      const { title, body, tags } = request.payload;
+      await this._service.editNoteById(
+        id,
+        { title, body, tags },
+      );
+
+      const response = h.response({
+        status: 'success',
+        message: 'Catatan berhasil diperbarui',
+      });
+      response.code(200);
+      return response;
+    } catch (error) {
+      if (error instanceof ClientError) {
+        const response = h.response({
+          status: 'fail',
+          message: error.message,
+        });
+        response.code(error.statusCode);
+        return response;
+      }
+    }
   }
 
   async deleteNoteByIdHandler(request, h) {
-    const { id } = request.params;
-    await this._service.deleteNoteById(id);
-    const response = h.response({
-      status: 'success',
-      message: 'Catatan berhasil dihapus',
-    });
-    response.code(200);
-    return response;
+    try {
+      const { id } = request.params;
+      const { id: credentialId } = request.auth.credentials;
+      await this._service.verifyNoteOwner(id, credentialId);
+
+      await this._service.deleteNoteById(id);
+      const response = h.response({
+        status: 'success',
+        message: 'Catatan berhasil dihapus',
+      });
+      response.code(200);
+      return response;
+    } catch (error) {
+      if (error instanceof ClientError) {
+        const response = h.response({
+          status: 'fail',
+          message: error.message,
+        });
+        response.code(error.statusCode);
+        return response;
+      }
+    }
   }
 }
 

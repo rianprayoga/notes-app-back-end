@@ -33,8 +33,6 @@ const init = async () => {
     },
   });
 
-  
-
   // external plugins
   await server.register([
     {
