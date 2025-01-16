@@ -11,7 +11,17 @@
     },
     "rules": {        
         "no-console": "off",
-        "no-underscore-dangle":  ["error", { "allow": ["_notes","_service","_validator","_pool"] }],
+        "no-underscore-dangle":  ["error", { "allow": [
+            "_notes",
+            "_service",
+            "_validator",
+            "_pool", 
+            "_authenticationsService", 
+            "_usersService",
+            "_tokenManager",
+            "_usersService"
+
+             ] }],
         "camelcase": "off"
     }
 }
